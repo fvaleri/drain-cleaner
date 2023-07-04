@@ -14,7 +14,7 @@ This is normally done locally and the branch is just pushed into the GitHub repo
 
 After creating the release branch, you should also bump the project version in the `main` branch to the next minor / major version with the `-SNAPSHOT` suffix.
 You can use `make` for it:
-```bash
+```sh
 RELEASE_VERSION=1.3.0-SNAPSHOT make release_maven 
 ```
 

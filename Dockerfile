@@ -22,10 +22,8 @@ WORKDIR ${STRIMZI_HOME}
 #####
 # Add Drain Cleaner
 #####
-COPY target/quarkus-app/lib/ ./lib/
-COPY target/quarkus-app/*.jar ./
-COPY target/quarkus-app/app/ ./app/
-COPY target/quarkus-app/quarkus/ ./quarkus/
+COPY ./target/*.jar ./app.jar
+COPY ./target/lib/ ./lib/
 COPY ./bin/ ./bin/
 
 #####

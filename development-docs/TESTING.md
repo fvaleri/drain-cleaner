@@ -9,19 +9,21 @@ You can also run them it manually by evicting pods or by posting admission revie
 
 * Install the Drain Cleaner
 * Proxy to the Kubernetes API server
-  ```
+  ```sh
   kubectl proxy
   ```
 * Use `curl` to trigger eviction _(change pod name and namespace as needed)_:
-  ```
-  curl -v -H 'Content-type: application/json' http://localhost:8001/api/v1/namespaces/myproject/pods/my-cluster-zookeeper-1/eviction -d @src/test/resources/example-eviction-request.json
+  ```sh
+  curl -v -H 'Content-type: application/json' \
+    http://localhost:8001/api/v1/namespaces/myproject/pods/my-cluster-zookeeper-1/eviction \
+    -d @src/test/resources/example-eviction-request.json
   ```
 
 ### Posting admission review requests
 
-* Run Drain Cleaner locally (`mvn compile quarkus:dev`)
+* Run Drain Cleaner locally (`mvn clean compile exec:java`)
 * Use `curl` to post the Admission Review Request manually:
-  ```
+  ```sh
   curl -v -H 'Content-type: application/json' http://localhost:8080/drainer -d @src/test/resources/example-admission-review.json
   ```
 
@@ -29,7 +31,7 @@ You can also run them it manually by evicting pods or by posting admission revie
 
 If you want to ensure that everything works, you can run system tests using:
 
-```
+```sh
 mvn verify -Psystemtest
 ```
 

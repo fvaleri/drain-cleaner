@@ -32,18 +32,16 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 public class DrainCleanerST extends AbstractST {
-
     private static final Logger LOGGER = LogManager.getLogger(DrainCleanerST.class);
-
     private static final String MANUAL_RU_ANNO = "strimzi.io/manual-rolling-update";
 
     @Test
     void testEvictionRequestOnKafkaPod() {
         final String stsName = "my-cluster-kafka";
         final Map<String, String> labels = Map.of(
-                "app", stsName,
-                "strimzi.io/kind", "Kafka",
-                "strimzi.io/name", "my-cluster-kafka"
+            "app", stsName,
+            "strimzi.io/kind", "Kafka",
+            "strimzi.io/name", "my-cluster-kafka"
         );
 
         LOGGER.info("Creating dummy pod.");
@@ -68,9 +66,9 @@ public class DrainCleanerST extends AbstractST {
     void testEvictionRequestOnKafkaPodWithCorrectUUID() {
         final String stsName = "my-cluster-kafka";
         final Map<String, String> labels = Map.of(
-                "app", stsName,
-                "strimzi.io/kind", "Kafka",
-                "strimzi.io/name", "my-cluster-kafka"
+            "app", stsName,
+            "strimzi.io/kind", "Kafka",
+            "strimzi.io/name", "my-cluster-kafka"
         );
 
         LOGGER.info("Creating dummy pod.");
@@ -79,12 +77,12 @@ public class DrainCleanerST extends AbstractST {
         LOGGER.info("Creating eviction request to the pod");
         Pod pod = kubeClient().listPodsByPrefixInName(Constants.NAMESPACE, stsName).get(0);
         Eviction eviction = new EvictionBuilder()
-                .withNewMetadata()
-                    .withName(pod.getMetadata().getName())
-                    .withNamespace(pod.getMetadata().getNamespace())
-                .endMetadata()
-                .withDeleteOptions(new DeleteOptionsBuilder().withPreconditions(new PreconditionsBuilder().withUid(pod.getMetadata().getUid()).build()).build())
-                .build();
+            .withNewMetadata()
+                .withName(pod.getMetadata().getName())
+                .withNamespace(pod.getMetadata().getNamespace())
+            .endMetadata()
+            .withDeleteOptions(new DeleteOptionsBuilder().withPreconditions(new PreconditionsBuilder().withUid(pod.getMetadata().getUid()).build()).build())
+            .build();
 
         KubernetesClientException ex = assertThrows(KubernetesClientException.class, () -> kubeClient().getClient().pods().inNamespace(Constants.NAMESPACE).withName(pod.getMetadata().getName()).evict(eviction));
         assertThat(ex.getCode(), is(500));
@@ -102,9 +100,9 @@ public class DrainCleanerST extends AbstractST {
     void testEvictionRequestOnKafkaPodWithWrongUUID() {
         final String stsName = "my-cluster-kafka";
         final Map<String, String> labels = Map.of(
-                "app", stsName,
-                "strimzi.io/kind", "Kafka",
-                "strimzi.io/name", "my-cluster-kafka"
+            "app", stsName,
+            "strimzi.io/kind", "Kafka",
+            "strimzi.io/name", "my-cluster-kafka"
         );
 
         LOGGER.info("Creating dummy pod.");
@@ -113,12 +111,12 @@ public class DrainCleanerST extends AbstractST {
         LOGGER.info("Creating eviction request to the pod");
         Pod pod = kubeClient().listPodsByPrefixInName(Constants.NAMESPACE, stsName).get(0);
         Eviction eviction = new EvictionBuilder()
-                .withNewMetadata()
-                    .withName(pod.getMetadata().getName())
-                    .withNamespace(pod.getMetadata().getNamespace())
-                .endMetadata()
-                .withDeleteOptions(new DeleteOptionsBuilder().withPreconditions(new PreconditionsBuilder().withUid("21f2e0da-b547-4c31-a24f-230d2edb17e5").build()).build()) // Random UID
-                .build();
+            .withNewMetadata()
+                .withName(pod.getMetadata().getName())
+                .withNamespace(pod.getMetadata().getNamespace())
+            .endMetadata()
+            .withDeleteOptions(new DeleteOptionsBuilder().withPreconditions(new PreconditionsBuilder().withUid("21f2e0da-b547-4c31-a24f-230d2edb17e5").build()).build()) // Random UID
+            .build();
 
         boolean evicted = kubeClient().getClient().pods().inNamespace(Constants.NAMESPACE).withName(pod.getMetadata().getName()).evict(eviction);
         assertThat(evicted, is(false));
@@ -132,8 +130,8 @@ public class DrainCleanerST extends AbstractST {
     void testEvictionRequestOnRandomPod() {
         final String stsName = "my-cluster-pulsar";
         final Map<String, String> labels = Map.of(
-                "app", stsName,
-                "strimzi.io/kind", "Kafka"
+            "app", stsName,
+            "strimzi.io/kind", "Kafka"
         );
 
         LOGGER.info("Creating dummy pod.");
@@ -181,7 +179,7 @@ public class DrainCleanerST extends AbstractST {
                     .withNewMetadata()
                         .addToLabels(labels)
                         .addToAnnotations("dummy-annotation", "some-value")
-                .endMetadata()
+                    .endMetadata()
                     .withNewSpec()
                         .addNewContainer()
                             .withName("nginx-container")
@@ -220,4 +218,3 @@ public class DrainCleanerST extends AbstractST {
         StUtils.createPodDisruptionBudgetWithWait(pdb);
     }
 }
-

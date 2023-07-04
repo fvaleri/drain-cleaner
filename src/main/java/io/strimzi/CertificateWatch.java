@@ -8,34 +8,24 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
-import io.quarkus.runtime.ShutdownEvent;
-import io.quarkus.runtime.StartupEvent;
-import org.eclipse.microprofile.config.ConfigProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.event.Observes;
-import jakarta.inject.Inject;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Quarkus loads the TLS certificate at startup but does not reload it when it changes. So if the Drain Cleaner runs for
- * too long, it can happen that the certificate expires and Kubernetes cannot call the webhook. To prevent this, the
- * CertificateWatch is watching for changes to the Kubernetes Secret with the TLS certificates. If any changes are
+ * The CertificateWatch is watching for changes to the Kubernetes Secret with the TLS certificates. If any changes are
  * detected, it will delete itself through the Kubernetes API (delete the Pod it runs in). It is by default disabled
  * in development. The configuration options {@code strimzi.certificate.watch.enabled} and
  * {@code strimzi.certificate.watch.*} options can be used to customize the default settings.
  */
-@ApplicationScoped
 public class CertificateWatch {
     private static final Logger LOG = LoggerFactory.getLogger(CertificateWatch.class);
 
-    @Inject
-    KubernetesClient client;
-
+    private final KubernetesClient client;
     private final boolean enabled;
     private final String namespace;
     private final String podName;
@@ -47,19 +37,27 @@ public class CertificateWatch {
 
     /**
      * Constructs the certificate watch. If watching for the certificate changes is enabled, it will also validate the
-     * configuration. This is the default constructor used in production which gets the values from quarkus configuration.
+     * configuration. This is the default constructor used in production which gets the values from configuration.
      */
     @SuppressWarnings("unused")
-    public CertificateWatch() {
-        this(ConfigProvider.getConfig().getOptionalValue("strimzi.certificate.watch.enabled", Boolean.class).orElse(false),
-                ConfigProvider.getConfig().getOptionalValue("strimzi.certificate.watch.namespace", String.class).orElse(null),
-                ConfigProvider.getConfig().getOptionalValue("strimzi.certificate.watch.pod.name", String.class).orElse(null),
-                ConfigProvider.getConfig().getOptionalValue("strimzi.certificate.watch.secret.name", String.class).orElse(null),
-                ConfigProvider.getConfig().getOptionalValues("strimzi.certificate.watch.secret.keys", String.class).orElse(null));
+    public CertificateWatch(KubernetesClient client) {
+        this(client,
+            Configuration.STRIMZI_CERTIFICATE_WATCH_ENABLED,
+            Configuration.STRIMZI_CERTIFICATE_WATCH_NAMESPACE,
+            Configuration.STRIMZI_CERTIFICATE_WATCH_POD_NAME,
+            Configuration.STRIMZI_CERTIFICATE_WATCH_SECRET_NAME,
+            secretKeys());
+    }
+
+    private static List<String> secretKeys() {
+        String keys = Configuration.STRIMZI_CERTIFICATE_WATCH_SECRET_KEYS;
+        return keys != null && !keys.isBlank() ?
+            Arrays.asList(keys.split("\\s*,\\s*")) :
+            null;
     }
 
     /**
-     * Constructor used by tests to pass mocked values
+     * Private constructor which is called from production and from tests.
      *
      * @param client        Kubernetes client
      * @param enabled       Enables / disables the certificate watch
@@ -68,21 +66,13 @@ public class CertificateWatch {
      * @param secretName    Name of the certificate Secret
      * @param secretKeys    Keys under which the certificates are stored in the secret
      */
-    /* test */ CertificateWatch(KubernetesClient client, boolean enabled, String namespace, String podName, String secretName, List<String> secretKeys)  {
-        this(enabled, namespace, podName, secretName, secretKeys);
+    /* test */ CertificateWatch(KubernetesClient client,
+                                boolean enabled,
+                                String namespace,
+                                String podName,
+                                String secretName,
+                                List<String> secretKeys)  {
         this.client = client;
-    }
-
-    /**
-     * Private constructor used to set the right values which is called from production and from tests.
-     *
-     * @param enabled       Enables / disables the certificate watch
-     * @param namespace     Drain Cleaner namespace
-     * @param podName       Drain Cleaner podName
-     * @param secretName    Name of the certificate Secret
-     * @param secretKeys    Keys under which the certificates are stored in the secret
-     */
-    private CertificateWatch(boolean enabled, String namespace, String podName, String secretName, List<String> secretKeys)  {
         this.enabled = enabled;
         this.namespace = namespace;
         this.podName = podName;
@@ -98,26 +88,8 @@ public class CertificateWatch {
     }
 
     /**
-     * Starts the watcher when Quarkus is starting
-     *
-     * @param ev    Startup event
-     */
-    void onStart(@Observes StartupEvent ev) {
-        start();
-    }
-
-    /**
-     * Stops the watch when Quarkus is stopping
-     *
-     * @param ev    Shutdown event
-     */
-    void onStop(@Observes ShutdownEvent ev) {
-        stop();
-    }
-
-    /**
-     * Starts the watcher (if enabled). It will first get the secret to get the initial data. Afterwards it sets up
-     * and starts an informer to be informed about any changes to it.
+     * Starts the watcher (if enabled). It will first get the secret to get the initial data.
+     * Afterwards it sets up and starts an informer to be informed about any changes to it.
      */
     /* test */ void start() {
         if (enabled) {
@@ -129,7 +101,7 @@ public class CertificateWatch {
     }
 
     /**
-     * Stops the informer
+     * Stops the informer.
      */
     /* test */ void stop() {
         if (enabled) {
@@ -167,8 +139,8 @@ public class CertificateWatch {
     }
 
     /**
-     * Gets the certificate secret and loads the initial values of the selected fields from it. The values are expected
-     * to be certificates -> small enough to just store them as a String.
+     * Gets the certificate secret and loads the initial values of the selected fields from it.
+     * The values are expected to be certificates -> small enough to just store them as a String.
      */
     private void initialize()   {
         Secret watchedSecret = client.secrets().inNamespace(namespace).withName(secretName).get();
@@ -212,7 +184,7 @@ public class CertificateWatch {
      * Checks the Secret for changes. It extracts the selected keys from it and compares it to the previously known
      * value. If they differ, it triggers the restart of the Drain Cleaner.
      *
-     * @param secret    Secret with the values which should be compared with the known certificates
+     * @param secret Secret with the values which should be compared with the known certificates
      */
     /* test */ void checkForChanges(Secret secret) {
         if (secret == null

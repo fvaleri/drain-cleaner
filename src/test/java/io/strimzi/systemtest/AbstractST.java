@@ -21,11 +21,9 @@ import java.util.Collections;
 import static io.strimzi.utils.k8s.KubeClusterResource.kubeClient;
 
 public class AbstractST {
-
     private static final Logger LOGGER = LogManager.getLogger(AbstractST.class);
 
     protected static KubeClusterResource cluster;
-
     protected static SetupDrainCleaner setupDrainCleaner;
 
     @BeforeEach
